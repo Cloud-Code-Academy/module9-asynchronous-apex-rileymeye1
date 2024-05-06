@@ -27,9 +27,34 @@ public with sharing class NextStepFuture {
      * Opportunity Next Step field is a standard field
      * Update the corresponding test class AsynchronousTest and test method nextStepFuture_testUpdateAllNextStep to cover test this method
      */
-    //[public | private ] [static] data_type method_name (input parameters) {
-    //  The body of the method
-    //}
+    @future
+    public static void updateAllNextStep () {
+        // Retrieve all Accounts
+        List<Account> accsToUpdate = [SELECT Id, Next_Step__c
+                                        FROM Account
+                                        WHERE Next_Step__c = null
+                                        WITH SECURITY_ENFORCED];
+
+        // Retrieve all Opportunities
+        List<Opportunity> oppsToUpdate = [SELECT Id, NextStep
+                                            FROM Opportunity
+                                            WHERE NextStep = null
+                                            WITH SECURITY_ENFORCED];
+        
+        // Update the Next Step field on the Accounts
+        for (Account acc : accsToUpdate) {
+            acc.Next_Step__c = 'Meeting in the future';
+        }
+
+        // Update the Next Step field on the Opportunities
+        for (Opportunity opp : oppsToUpdate) {
+            opp.NextStep = 'Meeting in the future';
+        }
+
+        // Update the Accounts and Opportunities
+        Database.update(accsToUpdate, AccessLevel.USER_MODE);
+        Database.update(oppsToUpdate, AccessLevel.USER_MODE);
+    }
 
     /*
     * Question 2
@@ -43,7 +68,11 @@ public with sharing class NextStepFuture {
         insertBigDeal(bigDeal);
 
         UserRole[] roles = [SELECT Id, Name FROM UserRole WHERE Id = :UserInfo.getUserRoleId() OR Name = 'CRO' LIMIT 1];
-        updateUserRoleName(roles);
+        String roleId;
+        if (roles.isEmpty() == false) {
+            roleId = roles[0].Id;
+        }
+        updateUserRoleName(roleId);
     }
 
     // Helper method to insert big deal
@@ -53,13 +82,17 @@ public with sharing class NextStepFuture {
         opp.StageName = 'Closed Won'; 
         opp.CloseDate = Date.today();
         
-        insert opp;
+        Database.insert(opp, AccessLevel.SYSTEM_MODE);
     }
 
 
     // Helper method to update role name
-    private static void updateUserRoleName(UserRole[] roles){
+    @future
+    private static void updateUserRoleName(String roleId){
         UserRole role;
+        UserRole[] roles = [SELECT Id, Name, portalType, CaseAccessForAccountOwner
+                            FROM UserRole
+                            WHERE Id = :roleId];
         if (roles.isEmpty()) {
             role = new UserRole();
             role.portalType = 'None'; 
@@ -71,6 +104,6 @@ public with sharing class NextStepFuture {
 
         role.Name = 'CRO';
 
-        upsert role;
+        Database.upsert(role, AccessLevel.SYSTEM_MODE);
     }
 }
