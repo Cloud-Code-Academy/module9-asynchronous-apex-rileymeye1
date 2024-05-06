@@ -68,7 +68,11 @@ public with sharing class NextStepFuture {
         insertBigDeal(bigDeal);
 
         UserRole[] roles = [SELECT Id, Name FROM UserRole WHERE Id = :UserInfo.getUserRoleId() OR Name = 'CRO' LIMIT 1];
-        updateUserRoleName(roles);
+        String roleId;
+        if (roles.isEmpty() == false) {
+            roleId = roles[0].Id;
+        }
+        updateUserRoleName(roleId);
     }
 
     // Helper method to insert big deal
@@ -78,13 +82,17 @@ public with sharing class NextStepFuture {
         opp.StageName = 'Closed Won'; 
         opp.CloseDate = Date.today();
         
-        insert opp;
+        Database.insert(opp, AccessLevel.SYSTEM_MODE);
     }
 
 
     // Helper method to update role name
-    private static void updateUserRoleName(UserRole[] roles){
+    @future
+    private static void updateUserRoleName(String roleId){
         UserRole role;
+        UserRole[] roles = [SELECT Id, Name, portalType, CaseAccessForAccountOwner
+                            FROM UserRole
+                            WHERE Id = :roleId];
         if (roles.isEmpty()) {
             role = new UserRole();
             role.portalType = 'None'; 
@@ -96,6 +104,6 @@ public with sharing class NextStepFuture {
 
         role.Name = 'CRO';
 
-        upsert role;
+        Database.upsert(role, AccessLevel.SYSTEM_MODE);
     }
 }
